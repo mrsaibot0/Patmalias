@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="hy">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Պատմալիաս</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Armenian:wght@300;400;600;700&display=swap');
+
+        body {
+            font-family: 'Noto Sans Armenian', sans-serif;
+            background: linear-gradient(135deg, #b92b27 0%, #1565C0 100%);
+            overscroll-behavior: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-anim {
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .card-in {
+            animation: slideIn 0.3s ease-out forwards;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.9);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .btn-press:active {
+            transform: scale(0.95);
+        }
+
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        .timer-circle {
+            transition: stroke-dashoffset 1s linear;
+        }
+    </style>
+</head>
+
+<body class="h-screen w-full flex items-center justify-center p-4 overflow-hidden text-gray-800">
+
+    <div id="app" class="w-full max-w-md h-full max-h-[900px] relative flex flex-col">
+    </div>
+
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'correct') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(500, now);
+                osc.frequency.exponentialRampToValueAtTime(1000, now + 0.1);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'skip') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.linearRampToValueAtTime(100, now + 0.2);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'tick') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(800, now);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            } else if (type === 'end') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.linearRampToValueAtTime(400, now + 0.5);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.5);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            }
+        }
+
+
+        const defaultWords = [
+
+
+            "Արտաշես I", "Արտավազդ I", "Արտավազդ II", "Տիգրան Մեծ", "Սաթենիկ Թագուհի",
+            "Զարեհ", "Արտաշատ", "Տիգրանակերտ", "Մծբին", "Ծոփք", "Փոքր Հայք", "Մեծ Հայք",
+            "Հռոմ", "Պարթևստան", "Պոնտոս", "Կոմմագենե", "Կապադովկիա", "Մարաստան",
+            "Ուտիք", "Արցախ", "Գուգարք", "Կարթագեն", "Միհրդատ Պոնտացի", "Լուկուլլոս",
+            "Պոմպեոս", "Մարկոս Կրասոս", "Անտոնիոս", "Կլեոպատրա", "Սելևկյաններ", "Հաննիբալ",
+            "Պլուտարքոս", "Ստրաբոն", "Գնեոս Պոմպեոս", "Արքայից արքա", "Չորս բդեշխներ",
+            "Հելլենիզմ", "Անահիտ Դիցուհի", "Արտաշատի պայմանագիր",
+            "Ծովից ծով Հայաստան", "Օկտավիանոս Օգոստոս", "Ալեքսանդրիա", "Ք․ա․ 31թ․",
+            "Ռազմական բարեփոխումներ", "Դիվանագիտություն", "Մագնեսիայի ճակատամարտ",
+            "Տիգրանակերտի ճակատամարտ", "Արածանիի ճակատամարտ", "Խառանի ճակատամարտ", "Գոդերձ II", "Ք․ա․ 87թ․", "Ք․ա․ 84թ․",
+            "Հայ-Պոնտական պայմանագիր", "Հայ-Պարթևական պայմանագիր",
+            "Ք.ա. 189թ․", "Ք.ա. 185թ․", "Ք.ա. 160թ․", "Ք.ա. 120թ․", "Ք.ա. 95թ․", "Ք.ա. 89թ․", "Ք.ա․ 94թ․", "Ք.ա․ 71թ․",
+            "Ք.ա. 69թ․", "Ք.ա. 67թ․", "Ք.ա. 66թ․", "Ք.ա. 55թ․", "Ք.ա. 34թ․",
+            "Լեռնային ցեղերի միություն", "Արքունյաց ժողով", "Ք․ա․ 68թ․", "Դիոն Կասիոս", "Հրահատ III", "Հուլիոս Կեսար",
+            "Ք.ա. 53թ․", "Ք.ա. 36թ․", "Կապադովկիա", "Պոնտոս", "Պտղոմայիս", "Ք․ա․ 71թ․", "Փյունիկիա",
+            "Սելևկյանների դաշնություն", "Հռոմեա-պոնտական պատերազմ", "Բուն հայկական հողեր", "Հպատակված երկրներ", 
+            "Հայաստանի քաղաքական ազդեցության երկրներ","Հայ-հռոմեական պատերազմներ",
+            "Նաբաթեա", "Միգդոնիա", "Օսրոյենե", "Ադիաբենե", "Սկյութական ցեղեր", "Տիմարքոս", "Միհրդատ III", 
+            "Գուրաս", "Միջագետք", "Արքունի պողոտա", "Կիլիկիա", "Աղձնիք", "<<Աստվածային>> պատվանուն",
+            "Ասորիք","Արտաշես II","Հրահատ IV","Ք․ա․ 30թ․","Ք․ա․ 20թ․","Ք․ա․ 27թ․","<<Սրբազան>>","Տիգրան III","Ք․ա․ 8թ․","Ատրպատական",
+            "Տիգրան IV","Ք․ա․ 5", "Արտավազդ III", "Ք․ա․ 2թ․", "Էրատո", "Ք․հ․ 1թ․", "Տակիտոս", "Սարմաստական քոչվոր ցեղեր","Արտաշեսյանների անկում"
+        ];
+
+        const state = {
+            screen: 'setup',
+            teams: [
+                { name: '', score: 0, color: 'text-red-700', bg: 'bg-red-100' },
+                { name: '', score: 0, color: 'text-blue-700', bg: 'bg-blue-100' }
+            ],
+            settings: {
+                timeLimit: 60,
+                winScore: 50
+            },
+            currentTurn: {
+                teamIndex: 0,
+                timeLeft: 0,
+                wordsCorrect: [],
+                wordsSkipped: [],
+                currentWord: null,
+                timerInterval: null
+            },
+            deck: []
+        };
+
+        function shuffleDeck() {
+            state.deck = [...defaultWords].sort(() => Math.random() - 0.5);
+        }
+
+        function getNextWord() {
+            if (state.deck.length === 0) shuffleDeck();
+            return state.deck.pop();
+        }
+
+        function render() {
+            const app = document.getElementById('app');
+            app.innerHTML = '';
+
+            switch (state.screen) {
+                case 'setup': renderSetup(app); break;
+                case 'ready': renderReady(app); break;
+                case 'game': renderGame(app); break;
+                case 'summary': renderSummary(app); break;
+                case 'scoreboard': renderScoreboard(app); break;
+                case 'win': renderWin(app); break;
+            }
+        }
+
+        function renderSetup(container) {
+            container.innerHTML = `
+                <div class="glass-panel flex flex-col p-4 sm:p-6 overflow-y-auto max-h-screen">
+
+                    <h1 class="text-3xl font-bold mb-2 text-red-700">Պատմալիաս</h1>
+                    <p class="text-gray-500 mb-8 font-semibold">Արտաշեսյաններ</p>
+
+                    <div class="space-y-4 flex-1 overflow-y-auto custom-scroll p-2">
+                        <div class="text-left">
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Հաղթական միավոր</label>
+                            <input type="number" id="winScoreInput" value="${state.settings.winScore}" class="w-full p-3 rounded-xl bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-red-500 outline-none text-lg font-semibold">
+                        </div>
+                        
+                        <div class="text-left">
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Ժամանակ (վրկ)</label>
+                            <input type="number" id="timeInput" value="${state.settings.timeLimit}" class="w-full p-3 rounded-xl bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-red-500 outline-none text-lg font-semibold">
+                        </div>
+
+                        <div class="text-left pt-4">
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Թիմեր</label>
+                            <div class="space-y-2">
+                                ${state.teams.map((t, i) => `
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-full ${t.bg} flex items-center justify-center font-bold text-sm ${t.color}">${i + 1}</div>
+                                        <input type="text" value="${t.name}" onchange="updateTeamName(${i}, this.value)" class="flex-1 p-3 rounded-xl bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-red-500 outline-none font-medium">
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="startGame()" class="mt-6 w-full bg-gradient-to-r from-red-600 to-blue-600 text-white p-4 rounded-xl text-xl font-bold shadow-lg shadow-red-300 btn-press">
+                        Սկսել խաղը
+                    </button>
+                </div>
+            `;
+        }
+
+        function updateTeamName(index, name) {
+            state.teams[index].name = name;
+        }
+
+        function startGame() {
+            const winScore = parseInt(document.getElementById('winScoreInput').value);
+            const timeLimit = parseInt(document.getElementById('timeInput').value);
+
+            if (winScore > 0) state.settings.winScore = winScore;
+            if (timeLimit > 0) state.settings.timeLimit = timeLimit;
+
+            shuffleDeck();
+            state.screen = 'scoreboard';
+            render();
+        }
+
+        function renderScoreboard(container) {
+            const winner = state.teams.find(t => t.score >= state.settings.winScore);
+            if (winner) {
+                state.screen = 'win';
+                render();
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="glass-panel flex flex-col p-4 sm:p-6 overflow-y-auto max-h-screen">
+
+                    <h2 class="text-2xl font-bold mb-6 text-gray-700">Ընթացիկ հաշիվ</h2>
+                    
+                    <div class="flex-1 space-y-4 overflow-y-auto custom-scroll">
+                        ${state.teams.map((t, i) => {
+                const isNext = i === state.currentTurn.teamIndex;
+                return `
+                            <div class="relative p-4 rounded-2xl ${isNext ? 'bg-red-50 border-2 border-red-500' : 'bg-gray-50 border border-gray-100'} transition-all">
+                                ${isNext ? '<div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-red-500 text-white text-xs px-2 py-2.5 rounded-full">Հաջորդը</div>' : ''}
+                                <div class="flex justify-between items-center">
+                                    <span class="font-bold text-lg ${t.color}">${t.name}</span>
+                                    <span class="text-2xl font-black text-gray-800">${t.score}</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
+                                    <div class="bg-red-500 h-2 rounded-full" style="width: ${Math.min(100, (t.score / state.settings.winScore) * 100)}%"></div>
+                                </div>
+                            </div>
+                        `}).join('')}
+                    </div>
+
+                    <div class="mt-6">
+                        <p class="text-gray-500 mb-2 text-sm">Նպատակը՝ ${state.settings.winScore} միավոր</p>
+                        <button onclick="goToReady()" class="w-full bg-gradient-to-r from-red-600 to-blue-600 text-white p-4 rounded-xl text-xl font-bold shadow-lg shadow-red-300 btn-press">
+                            Խաղալ փուլը
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function goToReady() {
+            state.screen = 'ready';
+            render();
+        }
+
+        function renderReady(container) {
+            const team = state.teams[state.currentTurn.teamIndex];
+            container.innerHTML = `
+                <div class="glass-panel flex flex-col p-4 sm:p-6 overflow-y-auto max-h-screen">
+
+                    <div class="mb-8 animate-bounce text-6xl text-red-500">
+                        <i class="fas fa-crown"></i>
+                    </div>
+                    <h2 class="text-gray-500 text-xl mb-2">Փոխանցեք սարքը</h2>
+                    <h1 class="text-4xl font-black ${team.color} mb-8">${team.name}</h1>
+                    <p class="text-gray-400 mb-8 max-w-xs text-sm">Բացատրեք բառերը առանց օգտագործելու բուն բառը կամ նույնարմատ բառեր:</p>
+                    
+                    <button onclick="startRound()" class="w-full max-w-xs bg-green-500 text-white p-5 rounded-2xl text-2xl font-bold shadow-xl shadow-green-200 btn-press">
+                        Պատրաստ եմ
+                    </button>
+                </div>
+            `;
+        }
+
+        function startRound() {
+            state.currentTurn.timeLeft = state.settings.timeLimit;
+            state.currentTurn.wordsCorrect = [];
+            state.currentTurn.wordsSkipped = [];
+            state.currentTurn.currentWord = getNextWord();
+            state.screen = 'game';
+            render();
+            startTimer();
+        }
+
+        function startTimer() {
+            clearInterval(state.currentTurn.timerInterval);
+            state.currentTurn.timerInterval = setInterval(() => {
+                state.currentTurn.timeLeft--;
+
+                const timerEl = document.getElementById('timer-display');
+                if (timerEl) {
+                    timerEl.innerText = state.currentTurn.timeLeft;
+
+                    if (state.currentTurn.timeLeft > 10) {
+                        timerEl.classList.remove('text-red-500', 'scale-110');
+                    }
+                }
+
+                if (state.currentTurn.timeLeft <= 10 && state.currentTurn.timeLeft > 0) {
+                    playSound('tick');
+                    if (timerEl) timerEl.classList.add('text-red-500', 'scale-110');
+                }
+
+                if (state.currentTurn.timeLeft <= 0) {
+                    endRound();
+                }
+            }, 1000);
+        }
+
+        function endRound() {
+            clearInterval(state.currentTurn.timerInterval);
+            playSound('end');
+            if (state.currentTurn.currentWord) {
+
+                state.currentTurn.wordsSkipped.push(state.currentTurn.currentWord);
+            }
+            state.screen = 'summary';
+            render();
+        }
+
+        function handleAnswer(isCorrect) {
+            const word = state.currentTurn.currentWord;
+            if (isCorrect) {
+                state.currentTurn.wordsCorrect.push(word);
+                playSound('correct');
+            } else {
+                state.currentTurn.wordsSkipped.push(word);
+                playSound('skip');
+            }
+
+            state.currentTurn.currentWord = getNextWord();
+
+            const cardEl = document.getElementById('word-card');
+            const wordEl = document.getElementById('word-text');
+
+
+            cardEl.classList.remove('card-in');
+            void cardEl.offsetWidth;
+            cardEl.classList.add('card-in');
+
+            wordEl.innerText = state.currentTurn.currentWord;
+        }
+
+        function renderGame(container) {
+            const team = state.teams[state.currentTurn.teamIndex];
+            container.innerHTML = `
+<div class="h-full flex flex-col overflow-hidden">
+
+    <!-- Top bar with team name and timer -->
+    <div class="flex justify-between items-center p-4 bg-white/90 backdrop-blur rounded-b-2xl shadow-sm z-10">
+        <span class="font-bold ${team.color}">${team.name}</span>
+        <div class="flex items-center gap-2">
+            <i class="fas fa-stopwatch text-gray-400"></i>
+            <span id="timer-display" class="text-2xl font-mono font-bold w-12 text-center text-gray-700">${state.currentTurn.timeLeft}</span>
+        </div>
+    </div>
+
+    <!-- Word card (no flex-1, just centered) -->
+    <div class="flex items-center justify-center p-4 sm:p-6">
+        <div id="word-card" class="bg-white w-full max-w-md aspect-[4/5] rounded-3xl shadow-2xl flex items-center justify-center p-4 sm:p-6 text-center border-b-8 border-gray-100 card-in relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-red-500"></div>
+            <h1 id="word-text" class="text-3xl sm:text-4xl font-black text-gray-800 break-words leading-tight">
+                ${state.currentTurn.currentWord}
+            </h1>
+        </div>
+    </div>
+
+    <!-- Buttons container (moves up because word card is no longer flex-1) -->
+    <div class="flex gap-2 sm:gap-4 p-2 sm:p-4">
+        <button onclick="handleAnswer(false)" class="flex-1 bg-red-100 text-red-600 hover:bg-red-200 rounded-2xl flex flex-col items-center justify-center gap-1 btn-press transition-colors shadow-lg shadow-red-100/50 h-[12vh] sm:h-24 p-2 sm:p-4 text-base sm:text-lg">
+            <i class="fas fa-times text-xl sm:text-2xl md:text-3xl"></i>
+            <span class="font-bold text-sm sm:text-base md:text-lg">Բաց թողնել</span>
+        </button>
+
+        <button onclick="handleAnswer(true)" class="flex-1 bg-green-100 text-green-600 hover:bg-green-200 rounded-2xl flex flex-col items-center justify-center gap-1 btn-press transition-colors shadow-lg shadow-green-100/50 h-[12vh] sm:h-24 p-2 sm:p-4 text-base sm:text-lg">
+            <i class="fas fa-check text-xl sm:text-2xl md:text-3xl"></i>
+            <span class="font-bold text-sm sm:text-base md:text-lg">Ճիշտ է</span>
+        </button>
+    </div>
+
+</div>
+    `;
+        }
+
+
+
+        function renderSummary(container) {
+            const correctCount = state.currentTurn.wordsCorrect.length;
+
+            const points = correctCount;
+
+            container.innerHTML = `
+                <<div class="glass-panel flex flex-col p-4 sm:p-6 overflow-y-auto max-h-screen">
+
+                    <div class="p-6 pb-2 text-center border-b border-gray-100">
+                        <h2 class="text-xl font-bold text-gray-700">Փուլի արդյունքները</h2>
+                        <div class="mt-2 text-4xl font-black text-red-600" id="round-score">${points} <span class="text-lg font-medium text-gray-400">միավոր</span></div>
+                        <p class="text-xs text-gray-400 mt-1">Սեղմեք բառերի վրա՝ փոխելու համար</p>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto custom-scroll p-4 space-y-2">
+                        ${state.currentTurn.wordsCorrect.map(w => createSummaryRow(w, 'correct')).join('')}
+                        ${state.currentTurn.wordsSkipped.map(w => createSummaryRow(w, 'skip')).join('')}
+                    </div>
+
+                    <div class="p-4 border-t border-gray-100 bg-white/50">
+                       <button onclick="confirmRound()" class="w-full bg-gradient-to-r from-red-600 to-blue-600 text-white rounded-xl font-bold p-2 sm:p-4 text-sm sm:text-base md:text-lg h-[8vh] sm:h-16 md:h-20 btn-press">
+    Հաստատել հաշիվը
+</button>
+
+
+                    </div>
+                </div>
+            `;
+        }
+
+        function createSummaryRow(word, status) {
+            const isCorrect = status === 'correct';
+            const icon = isCorrect ? 'fa-check' : 'fa-times';
+            const color = isCorrect ? 'text-green-600' : 'text-red-500';
+            const bg = isCorrect ? 'bg-green-50' : 'bg-red-50';
+
+            return `
+                <div onclick="toggleWordStatus('${word}')" class="flex items-center justify-between p-3 rounded-xl ${bg} cursor-pointer hover:opacity-80 transition-all">
+                    <span class="font-semibold text-gray-700 ml-2 text-sm md:text-base">${word}</span>
+                    <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm">
+                        <i class="fas ${icon} ${color}"></i>
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleWordStatus(word) {
+            const correctIdx = state.currentTurn.wordsCorrect.indexOf(word);
+
+            if (correctIdx > -1) {
+
+                state.currentTurn.wordsCorrect.splice(correctIdx, 1);
+                state.currentTurn.wordsSkipped.push(word);
+            } else {
+                const skipIdx = state.currentTurn.wordsSkipped.indexOf(word);
+                if (skipIdx > -1) {
+
+                    state.currentTurn.wordsSkipped.splice(skipIdx, 1);
+                    state.currentTurn.wordsCorrect.push(word);
+                }
+            }
+
+            const app = document.getElementById('app');
+            if (app) renderSummary(app);
+        }
+
+        function confirmRound() {
+
+            const points = state.currentTurn.wordsCorrect.length;
+            state.teams[state.currentTurn.teamIndex].score += points;
+
+
+            if (state.teams[state.currentTurn.teamIndex].score < 0) state.teams[state.currentTurn.teamIndex].score = 0;
+
+            state.currentTurn.teamIndex = (state.currentTurn.teamIndex + 1) % state.teams.length;
+
+            state.screen = 'scoreboard';
+            render();
+        }
+
+        function renderWin(container) {
+            const winner = state.teams.reduce((prev, current) => (prev.score > current.score) ? prev : current);
+
+            container.innerHTML = `
+                <div class="glass-panel flex flex-col p-4 sm:p-6 overflow-y-auto max-h-screen">
+
+                    <div class="text-6xl mb-6">🏆</div>
+                    <h2 class="text-2xl font-bold text-gray-500 mb-2">Հաղթող</h2>
+                    <h1 class="text-5xl font-black ${winner.color} mb-8">${winner.name}</h1>
+                    <div class="text-4xl font-bold text-gray-800 mb-12">${winner.score} միավոր</div>
+                    
+                    <button onclick="resetGame()" class="w-full bg-gray-800 text-white p-4 rounded-xl text-lg font-bold shadow-lg btn-press">
+                        Խաղալ նորից
+                    </button>
+                </div>
+            `;
+        }
+
+        function resetGame() {
+            state.teams.forEach(t => t.score = 0);
+            state.currentTurn.teamIndex = 0;
+            state.screen = 'setup';
+            render();
+        }
+
+        window.onload = function () {
+            render();
+        }
+
+    </script>
+</body>
+
+</html>
